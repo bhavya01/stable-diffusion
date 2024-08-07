@@ -33,22 +33,22 @@ model:
 
       save_images:
         enabled: False
-        base_output_dir: "/results/inference"
+        base_output_dir: "/home/bbahl/results/inference"
       fid:
         enabled: True
         inception_weights_url: https://github.com/mseitzer/pytorch-fid/releases/download/fid_weights/pt_inception-2015-12-05-6726825d.pth
-        cache_dir: /checkpoints/inception
-        gt_path: /datasets/coco2014/val2014_30k_stats.npz
+        cache_dir: /home/bbahl/checkpoints/inception
+        gt_path: /home/bbahl/datasets/coco2014/val2014_30k_stats.npz
       clip:
         enabled: True
         clip_version: "ViT-H-14"
-        cache_dir: /checkpoints/clip
+        cache_dir: /home/bbahl/checkpoints/clip
 
     scheduler_config:
       target: ldm.lr_scheduler.LambdaLinearScheduler
       params:
-        warm_up_steps: [ 1000 ]
-        cycle_lengths: [ 10000000000000 ] # incredibly large number to prevent corner cases
+        warm_up_steps: [ 10 ]
+        cycle_lengths: [ 100] # incredibly large number to prevent corner cases
         f_start: [ 1.e-6 ]
         f_max: [ 1. ]
         f_min: [ 1. ]
@@ -102,7 +102,8 @@ model:
         version: "laion2b_s32b_b79k"
         freeze: True
         layer: "penultimate"
-        cache_dir: /checkpoints/clip
+        cache_dir: /home/bbahl/checkpoints/clip
+        device: "xla"
 
 data:
     target: ldm.data.composable_data_module.ComposableDataModule
@@ -110,7 +111,7 @@ data:
       train:
         target: ldm.data.webdatasets.build_dataloader
         params:
-          urls: /datasets/laion-400m/webdataset-moments-filtered/{00000..00831}.tar
+          urls: /home/bbahl/datasets/laion-400m/webdataset-moments-filtered/{00000..00006}.tar
           batch_size: 8
           shuffle: 1000
           partial: False
@@ -121,7 +122,7 @@ data:
       validation:
         target: ldm.data.tsv.build_dataloader
         params:
-          annotations_file: "/datasets/coco2014/val2014_30k.tsv"
+          annotations_file: "/home/bbahl/datasets/coco2014/val2014_30k.tsv"
           keys: ["image_id", "id", "caption"]
           batch_size: 8
           shuffle: False
@@ -129,25 +130,20 @@ data:
 
 lightning:
   trainer:
-    accelerator: 'gpu'
+    accelerator: 'tpu'
     num_nodes: 1
-    devices: 8
+    devices: 4
     precision: 16
     logger: False
     log_every_n_steps: 5
-    enable_progress_bar: False
+    enable_progress_bar: True
     max_epochs: -1
-    max_steps: 10000000000000
-    val_check_interval: 1000
-    enable_checkpointing: True
+    max_steps: 50
+    val_check_interval: 10
+    enable_checkpointing: False
     num_sanity_val_steps: 0
     strategy:
-      target: strategies.DDPStrategy
+      target: strategies.XLAStrategy
       params:
         find_unused_parameters: False
 
-  modelcheckpoint:
-    target: lightning.pytorch.callbacks.ModelCheckpoint
-    params:
-      save_top_k: -1
-      every_n_train_steps: 1000

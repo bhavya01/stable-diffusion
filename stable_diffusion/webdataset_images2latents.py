@@ -80,7 +80,8 @@ if __name__ == '__main__':
     parser.add_argument('--resolution', default=512, help='Output image resolution')
 
     args = parser.parse_args()
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    # device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    device = torch.device('xla')
 
     # Image transform
     image_transforms = transforms.Compose([

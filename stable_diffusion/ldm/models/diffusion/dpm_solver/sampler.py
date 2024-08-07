@@ -1,6 +1,6 @@
 """SAMPLING ONLY."""
 import torch
-
+import torch_xla
 from .dpm_solver import NoiseScheduleVP, model_wrapper, DPM_Solver
 
 MODEL_TYPES = {
@@ -10,7 +10,7 @@ MODEL_TYPES = {
 
 
 class DPMSolverSampler(object):
-    def __init__(self, model, device=torch.device("cuda"), **kwargs):
+    def __init__(self, model, device=torch.device("xla"), **kwargs):
         super().__init__()
         self.model = model
         self.device = device

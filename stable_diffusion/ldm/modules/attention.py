@@ -12,7 +12,7 @@ from ldm.modules.diffusionmodules.util import checkpoint
 try:
     import xformers
     import xformers.ops
-    XFORMERS_IS_AVAILBLE = True
+    XFORMERS_IS_AVAILBLE = False
 except:
     XFORMERS_IS_AVAILBLE = False
 

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.utils.checkpoint import checkpoint
-
+import torch_xla
 import open_clip
 
 
@@ -29,13 +29,13 @@ class FrozenOpenCLIPEmbedder(AbstractEncoder):
         "penultimate"
     ]
 
-    def __init__(self, arch="ViT-H-14", version="laion2b_s32b_b79k", device="cuda", max_length=77,
+    def __init__(self, arch="ViT-H-14", version="laion2b_s32b_b79k", device="xla", max_length=77,
                  freeze=True, layer="last", cache_dir=None):
         super().__init__()
         assert layer in self.LAYERS
         model, _, _ = open_clip.create_model_and_transforms(arch, device=torch.device('cpu'), pretrained=version, cache_dir=cache_dir)
         del model.visual
-        self.model = model
+        self.model = model.to('xla')
 
         self.device = device
         self.max_length = max_length

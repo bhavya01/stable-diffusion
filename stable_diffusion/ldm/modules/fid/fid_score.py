@@ -41,7 +41,7 @@ import torchvision.transforms as TF
 from PIL import Image
 from scipy import linalg
 from torch.nn.functional import adaptive_avg_pool2d
-
+import torch_xla
 try:
     from tqdm import tqdm
 except ImportError:
@@ -293,6 +293,7 @@ def main():
 
     if args.device is None:
         device = torch.device('cuda' if (torch.cuda.is_available()) else 'cpu')
+        device = torch.device('xla')
     else:
         device = torch.device(args.device)
 

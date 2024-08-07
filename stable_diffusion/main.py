@@ -11,7 +11,7 @@ import torch
 import torchvision
 
 try:
-    import lightning.pytorch as pl
+    import lightning as pl
 except:
     import pytorch_lightning as pl
 
@@ -308,21 +308,21 @@ class CUDACallback(Callback):
 
     def on_train_epoch_start(self, trainer, pl_module):
         # Reset the memory use counter
-        torch.cuda.reset_peak_memory_stats(trainer.strategy.root_device.index)
-        torch.cuda.synchronize(trainer.strategy.root_device.index)
+        # torch.cuda.reset_peak_memory_stats(trainer.strategy.root_device.index)
+        # torch.cuda.synchronize(trainer.strategy.root_device.index)
         self.start_time = time.time()
 
     def on_train_epoch_end(self, trainer, pl_module):
-        torch.cuda.synchronize(trainer.strategy.root_device.index)
-        max_memory = torch.cuda.max_memory_allocated(trainer.strategy.root_device.index) / 2**20
+        # torch.cuda.synchronize(trainer.strategy.root_device.index)
+        # max_memory = torch.cuda.max_memory_allocated(trainer.strategy.root_device.index) / 2**20
         epoch_time = time.time() - self.start_time
 
         try:
-            max_memory = trainer.strategy.reduce(max_memory)
+            # max_memory = trainer.strategy.reduce(max_memory)
             epoch_time = trainer.strategy.reduce(epoch_time)
 
             rank_zero_info(f"Average Epoch time: {epoch_time:.2f} seconds")
-            rank_zero_info(f"Average Peak memory {max_memory:.2f}MiB")
+            # rank_zero_info(f"Average Peak memory {max_memory:.2f}MiB")
         except AttributeError:
             pass
 
@@ -393,7 +393,7 @@ if __name__ == "__main__":
     sys.path.append(os.getcwd())
 
     parser = get_parser()
-    parser = Trainer.add_argparse_args(parser)
+    # parser = Trainer.add_argparse_args(parser)
 
     opt, unknown = parser.parse_known_args()
     # Veirfy the arguments are both specified
@@ -449,7 +449,7 @@ if __name__ == "__main__":
     # Sets the seed for the random number generator to ensure reproducibility
     mllogger.event(key=mllog_constants.SEED, value=opt.seed)
     seed_everything(opt.seed)
-
+    exit
     # Intinalize and save configuratioon using the OmegaConf library.
     try:
         # init and save configs
@@ -460,15 +460,15 @@ if __name__ == "__main__":
         # merge trainer cli with config
         trainer_config = lightning_config.get("trainer", OmegaConf.create())
 
-        for k in nondefault_trainer_args(opt):
-            trainer_config[k] = getattr(opt, k)
+        # for k in nondefault_trainer_args(opt):
+        #     trainer_config[k] = getattr(opt, k)
 
         # Check whether the accelerator is gpu
-        if not trainer_config["accelerator"] == "gpu":
-            del trainer_config["accelerator"]
-            cpu = True
-        else:
-            cpu = False
+        # if not trainer_config["accelerator"] == "gpu":
+        #     del trainer_config["accelerator"]
+        #     cpu = True
+        # else:
+        #     cpu = False
         trainer_opt = argparse.Namespace(**trainer_config)
         lightning_config.trainer = trainer_config
 
@@ -485,6 +485,8 @@ if __name__ == "__main__":
             rank_zero_info("Using ckpt_path = {}".format(config.model["params"]["ckpt"]))
 
         model = instantiate_from_config(config.model)
+
+        print("Initialized model;asdfadf")
         # trainer and callbacks
         trainer_kwargs = dict()
 
@@ -586,26 +588,33 @@ if __name__ == "__main__":
         # Set up ModelCheckpoint callback to save best models
         # modelcheckpoint - use TrainResult/EvalResult(checkpoint_on=metric) to
         # specify which metric is used to determine best models
-        default_modelckpt_cfg = {
-            "target": LIGHTNING_PACK_NAME + "callbacks.ModelCheckpoint",
-            "params": {
-                "dirpath": ckptdir,
-                "filename": "{epoch:06}-{step:09}",
-                "verbose": True,
-                "save_last": True,
-            }
-        }
+        # default_modelckpt_cfg = {
+        #     "target": LIGHTNING_PACK_NAME + "callbacks.ModelCheckpoint",
+        #     "params": {
+        #         "dirpath": ckptdir,
+        #         "filename": "{epoch:06}-{step:09}",
+        #         "verbose": True,
+        #         "save_last": True,
+        #     }
+        # }
 
-        if "modelcheckpoint" in lightning_config:
-            modelckpt_cfg = lightning_config.modelcheckpoint
-        else:
-            modelckpt_cfg = OmegaConf.create()
-        modelckpt_cfg = OmegaConf.merge(default_modelckpt_cfg, modelckpt_cfg)
-        trainer_kwargs["callbacks"].append(instantiate_from_config(modelckpt_cfg))
+        # if "modelcheckpoint" in lightning_config:
+        #     modelckpt_cfg = lightning_config.modelcheckpoint
+        # else:
+        #     modelckpt_cfg = OmegaConf.create()
+        # modelckpt_cfg = OmegaConf.merge(default_modelckpt_cfg, modelckpt_cfg)
+        # trainer_kwargs["callbacks"].append(instantiate_from_config(modelckpt_cfg))
 
         # Create a Trainer object with the specified command-line arguments and keyword arguments, and set the log directory
-        trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
-        trainer.logdir = logdir
+        # trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
+        # print(trainer_opt)
+        # print(trainer_kwargs)
+        # import pdb; pdb.set_trace()
+        # train_strategy = instantiate_from_config(trainer_opt.strategy)
+        print("Before trainer init")
+        trainer = Trainer(accelerator='tpu', devices=4, num_nodes=1, precision='bf16-true', max_epochs=2)
+        print("After trainer init")
+        # trainer.logdir = logdir
 
         # Create a data module based on the configuration file
         data = instantiate_from_config(config.data)
@@ -622,24 +631,26 @@ if __name__ == "__main__":
         mllogger.event(mllog_constants.GRADIENT_ACCUMULATION_STEPS, value=accumulate_grad_batches)
 
         # Configure number of GPUs
-        if not cpu:
-            ngpu = trainer_config["devices"] * trainer_config["num_nodes"]
-        else:
-            ngpu = 1
+        # if not cpu:
+        #     ngpu = trainer_config["devices"] * trainer_config["num_nodes"]
+        # else:
+        #     ngpu = 1
+        
+        ndevices=trainer_config["devices"]
 
         # Configure batch size
         local_batch_size = config.data.params.train.params.batch_size
-        global_batch_size = local_batch_size*ngpu
+        global_batch_size = local_batch_size*ndevices
         mllogger.event(mllog_constants.GLOBAL_BATCH_SIZE, value=trainer.world_size * local_batch_size)
 
         # Configure learning rate based on the batch size, base learning rate and number of GPUs
         # If scale_lr is true, calculate the learning rate based on additional factors
         base_lr = config.model.base_learning_rate
         if opt.scale_lr:
-            model.learning_rate = accumulate_grad_batches * ngpu * local_batch_size * base_lr
+            model.learning_rate = accumulate_grad_batches * ndevices * local_batch_size * base_lr
             rank_zero_info(
                 "Setting learning rate to {:.2e} = {} (accumulate_grad_batches) * {} (num_gpus) * {} (local_batch_size) * {:.2e} (base_lr)"
-                .format(model.learning_rate, accumulate_grad_batches, ngpu, local_batch_size, base_lr))
+                .format(model.learning_rate, accumulate_grad_batches, ndevices, local_batch_size, base_lr))
         else:
             model.learning_rate = base_lr
             rank_zero_info("++++ NOT USING LR SCALING ++++")
@@ -649,9 +660,9 @@ if __name__ == "__main__":
         def melk(*args, **kwargs):
             # run all checkpoint hooks
             if trainer.global_rank == 0:
-                print("Summoning checkpoint.")
-                ckpt_path = os.path.join(ckptdir, "last.ckpt")
-                trainer.save_checkpoint(ckpt_path)
+                print("Melk")
+                # ckpt_path = os.path.join(ckptdir, "last.ckpt")
+                # trainer.save_checkpoint(ckpt_path)
 
         def divein(*args, **kwargs):
             if trainer.global_rank == 0:

@@ -2,7 +2,6 @@
 
 : "${NUM_NODES:=1}"
 : "${GPUS_PER_NODE:=8}"
-: "${CHECKPOINT:=/checkpoints/sd/512-base-ema.ckpt}"
 : "${RESULTS_DIR:=}"
 : "${CONFIG:=./configs/train_01x08x08.yaml}"
 
@@ -29,10 +28,10 @@ done
 
 set -e
 
-export HF_DATASETS_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
-export DIFFUSERS_OFFLINE=1
-export HF_HOME=/hf_home
+# export HF_DATASETS_OFFLINE=1
+# export TRANSFORMERS_OFFLINE=1
+# export DIFFUSERS_OFFLINE=1
+# export HF_HOME=/hf_home
 
 start=$(date +%s)
 start_fmt=$(date +%Y-%m-%d\ %r)
@@ -48,7 +47,6 @@ python main.py \
     lightning.trainer.num_nodes=${NUM_NODES} \
     lightning.trainer.devices=${GPUS_PER_NODE} \
     -m train \
-    --ckpt ${CHECKPOINT} \
     --logdir ${RESULTS_DIR}  \
     -b ${CONFIG}
 

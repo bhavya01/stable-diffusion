@@ -1,6 +1,7 @@
 """SAMPLING ONLY."""
 
 import torch
+import torch_xla
 import numpy as np
 from tqdm import tqdm
 from functools import partial
@@ -10,7 +11,7 @@ from ldm.models.diffusion.sampling_util import norm_thresholding
 
 
 class PLMSSampler(object):
-    def __init__(self, model, schedule="linear", device=torch.device("cuda"), **kwargs):
+    def __init__(self, model, schedule="linear", device=torch.device("xla"), **kwargs):
         super().__init__()
         self.model = model
         self.ddpm_num_timesteps = model.num_timesteps
